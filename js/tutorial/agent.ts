@@ -3,6 +3,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
+
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
@@ -59,3 +60,15 @@ const nextState = await app.invoke({
   messages: [...finalState.messages, new HumanMessage("포항의 날씨는 어때?")],
 });
 console.log(nextState.messages[nextState.messages.length - 1].content);
+
+// Visualizing graph
+import { writeFileSync } from "node:fs";
+const graph = await app.getGraphAsync();
+
+const image = await graph.drawMermaidPng();
+
+const arrayBuffer = await image.arrayBuffer();
+
+const filePath = "./tutorial/graph.png";
+writeFileSync(filePath, new Uint8Array(arrayBuffer));
+console.log(`그래프 상태가 ${filePath}에 저장되었습니다.`);
