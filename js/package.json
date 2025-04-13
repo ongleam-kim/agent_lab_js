@@ -6,11 +6,14 @@
   "scripts": {
     "tutorial": "tsx tutorial/agent.ts",
     "chatbot": "tsx chatbot/agent.ts",
+    "dev": "tsx dev/agent.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@langchain/anthropic": "^0.3.17",
     "@langchain/community": "^0.3.40",
     "@langchain/core": "^0.3.44",
+    "@langchain/google-genai": "^0.2.3",
     "@langchain/langgraph": "^0.2.63",
     "@langchain/openai": "^0.5.5",
     "dotenv": "^16.5.0"
