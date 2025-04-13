@@ -65,6 +65,7 @@ console.log(nextState.messages[nextState.messages.length - 1].content);
 import { writeFileSync } from "node:fs";
 const graph = await app.getGraphAsync();
 
+const mermaid = graph.drawMermaid();
 const image = await graph.drawMermaidPng();
 
 const arrayBuffer = await image.arrayBuffer();
@@ -72,3 +73,4 @@ const arrayBuffer = await image.arrayBuffer();
 const filePath = "./tutorial/graph.png";
 writeFileSync(filePath, new Uint8Array(arrayBuffer));
 console.log(`그래프 상태가 ${filePath}에 저장되었습니다.`);
+console.log(`MERMAID CODE: \n${mermaid}`);
