@@ -2,20 +2,24 @@
   "name": "prompt_lab",
   "version": "1.0.0",
   "description": "LangChain 기반 프로젝트",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "node index.js",
+    "start": "tsx tutorial/agent.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@langchain/core": "^0.1.0",
-    "@langchain/langgraph": "^0.0.1",
-    "@langchain/openai": "^0.0.1",
-    "@langchain/community": "^0.0.1"
+    "@langchain/community": "^0.3.40",
+    "@langchain/core": "^0.3.44",
+    "@langchain/langgraph": "^0.2.63",
+    "@langchain/openai": "^0.5.5",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "author": "",
   "license": "ISC"
-} 
+}
