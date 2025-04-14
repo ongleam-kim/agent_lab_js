@@ -5,9 +5,9 @@ import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
-import dotenv from "dotenv";
 import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 import { PROMPT } from "./prompts";
+import dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
 
