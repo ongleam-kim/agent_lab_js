@@ -1,5 +1,7 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatTogetherAI } from "@langchain/community/chat_models/togetherai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -9,9 +11,24 @@ import { PROMPT } from "./prompts";
 
 dotenv.config({ path: ".env.local" });
 
+// const model = new ChatOpenAI({
+//   model: "gpt-4o-mini",
+//   temperature: 0,
+// });
+
+// const model = new ChatGoogleGenerativeAI({
+//   model: "gemini-2.0-flash-lite",
+//   temperature: 0,
+// });
+
 // const model = new ChatAnthropic({
 //   model: "claude-3-haiku-20240307",
 //   temperature: 0,
+//   clientOptions: {
+//     defaultHeaders: {
+//       "anthropic-beta": "prompt-caching-2024-07-31",
+//     },
+//   },
 // });
 
 const model = new ChatTogetherAI({
@@ -25,42 +42,32 @@ const StateAnnotation = Annotation.Root({
   refundAuthorized: Annotation<boolean>,
 });
 
+const routingSchema = z.object({
+  nextRepresentative: z.enum(["RESPOND", "CERTIFICATION"]),
+});
+
 const initialSupport = async (state: typeof StateAnnotation.State) => {
   const supportResponse = await model.invoke([
     { role: "system", content: PROMPT.init.system },
     ...state.messages,
   ]);
 
-  const routingResponse = await model.invoke(
-    [
-      {
-        role: "system",
-        content: PROMPT.routing.system,
-      },
-      ...state.messages,
-      {
-        role: "user",
-        content: PROMPT.routing.system,
-      },
-    ],
-
-    {
-      response_format: {
-        type: "json_object",
-        schema: zodToJsonSchema(
-          z.object({
-            nextRepresentative: z.enum(["RESPOND", "CERTIFICATION"]),
-          })
-        ),
-      },
-    }
+  const structuredOutputModel = model.withStructuredOutput(
+    routingSchema,
+    { name: "RouteUserRequest" } // Optional name for the underlying tool call
   );
-  // Some chat models can return complex content, but Together will not
-  const routingOutput = JSON.parse(routingResponse.content as string);
-  // Will append the response message to the current interaction state
+
+  const routingMessages = [
+    new SystemMessage(PROMPT.routing.system),
+    ...state.messages,
+    new HumanMessage(PROMPT.routing.user),
+  ];
+
+  const routingResponse = await structuredOutputModel.invoke(routingMessages);
+
   return {
     messages: [supportResponse],
-    nextRepresentative: routingOutput.nextRepresentative,
+    nextRepresentative: routingResponse.nextRepresentative,
   };
 };
 
@@ -73,10 +80,7 @@ const certificationSupport = async (state: typeof StateAnnotation.State) => {
   }
 
   const response = await model.invoke([
-    {
-      role: "system",
-      content: PROMPT.certification.system,
-    },
+    new SystemMessage(PROMPT.certification.system),
     ...trimmedHistory,
   ]);
 
@@ -112,6 +116,7 @@ workflow = workflow.addEdge("certification_support", "__end__");
 console.log("Added edges!");
 
 import { MemorySaver } from "@langchain/langgraph";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 
 const checkpointer = new MemorySaver();
 
@@ -139,7 +144,7 @@ const stream = await app.stream(
     messages: [
       {
         role: "user",
-        content: "hey my name is Tom Kim how are you??",
+        content: "'교류전원을 사용하는 전동공구' 는 어떤 KC인증을 받아야해??",
       },
     ],
   },
