@@ -1,12 +1,6 @@
-import { ChatTogetherAI } from "@langchain/community/chat_models/togetherai";
+import { ChatTogetherLLM } from "../lib/llms";
 
-import dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
-
-const model = new ChatTogetherAI({
-  model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-  temperature: 0,
-});
+const model = ChatTogetherLLM;
 
 import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 const StateAnnotation = Annotation.Root({

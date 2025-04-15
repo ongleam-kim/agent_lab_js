@@ -1,36 +1,11 @@
-import { ChatAnthropic } from "@langchain/anthropic";
 import { SqlToolkit } from "langchain/agents/toolkits/sql";
 import { DataSource } from "typeorm";
 import { SqlDatabase } from "langchain/sql_db";
 import { createClient } from "@supabase/supabase-js";
+import { saveModelGraphAsPng } from "../lib/utils.ts";
+import { GoogleLLM } from "../lib/llms.ts";
 
-import dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
-
-// const llm = new ChatAnthropic({
-//   model: "claude-3-haiku-20240307",
-//   temperature: 0,
-//   clientOptions: {
-//     defaultHeaders: {
-//       "anthropic-beta": "prompt-caching-2024-07-31",
-//     },
-//   },
-// });
-
-// const llm = new ChatOpenAI({
-//   model: "gpt-4o-mini",
-//   temperature: 0,
-// });
-
-// const llm = new ChatTogetherAI({
-//   model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-//   temperature: 0,
-// });
-
-const llm = new ChatGoogleGenerativeAI({
-  model: "gemini-2.0-flash-lite",
-  temperature: 0,
-});
+const llm = GoogleLLM;
 
 // Supabase 연결 설정
 const datasource = new DataSource({
@@ -63,11 +38,10 @@ const tools = toolkit.getTools();
 // );
 
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatTogetherAI } from "@langchain/community/chat_models/togetherai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 
 const agentExecutor = createReactAgent({ llm, tools });
+
+// saveModelGraphAsPng(agentExecutor, "sqltool/graph.png");
 
 const systemPrompt = `
 You are a helpful assistant that can answer questions about the 'kc_certification' of 'product' based on 'certification' table. 
@@ -97,7 +71,7 @@ ALWAYS SQL query keyword should use \' instead of \".
  완구는 [어린이제품] 카테고리에 속하며 [안전확인] 인증을 받아야합니다.
 `;
 
-const exampleQuery = "전기에어커튼은 어떤 인증을 받아야해?";
+const exampleQuery = " 건전지는 어떤 인증을 받아야해?";
 
 const events = await agentExecutor.stream(
   {

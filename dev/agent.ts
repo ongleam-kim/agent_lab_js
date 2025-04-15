@@ -1,41 +1,9 @@
-import { ChatAnthropic } from "@langchain/anthropic";
-import { ChatTogetherAI } from "@langchain/community/chat_models/togetherai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-
+import { ChatTogetherLLM } from "../lib/llms";
 import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 import { PROMPT } from "./prompts";
-import dotenv from "dotenv";
 
-dotenv.config({ path: ".env.local" });
-
-// const model = new ChatOpenAI({
-//   model: "gpt-4o-mini",
-//   temperature: 0,
-// });
-
-// const model = new ChatGoogleGenerativeAI({
-//   model: "gemini-2.0-flash-lite",
-//   temperature: 0,
-// });
-
-// const model = new ChatAnthropic({
-//   model: "claude-3-haiku-20240307",
-//   temperature: 0,
-//   clientOptions: {
-//     defaultHeaders: {
-//       "anthropic-beta": "prompt-caching-2024-07-31",
-//     },
-//   },
-// });
-
-const model = new ChatTogetherAI({
-  model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-  temperature: 0,
-});
-
+const llm = ChatTogetherLLM;
 const StateAnnotation = Annotation.Root({
   ...MessagesAnnotation.spec,
   nextRepresentative: Annotation<string>,
@@ -47,12 +15,12 @@ const routingSchema = z.object({
 });
 
 const initialSupport = async (state: typeof StateAnnotation.State) => {
-  const supportResponse = await model.invoke([
+  const supportResponse = await llm.invoke([
     { role: "system", content: PROMPT.init.system },
     ...state.messages,
   ]);
 
-  const structuredOutputModel = model.withStructuredOutput(
+  const structuredOutputModel = llm.withStructuredOutput(
     routingSchema,
     { name: "RouteUserRequest" } // Optional name for the underlying tool call
   );
@@ -79,7 +47,7 @@ const certificationSupport = async (state: typeof StateAnnotation.State) => {
     trimmedHistory = trimmedHistory.slice(0, -1);
   }
 
-  const response = await model.invoke([
+  const response = await llm.invoke([
     new SystemMessage(PROMPT.certification.system),
     ...trimmedHistory,
   ]);
