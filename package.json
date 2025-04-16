@@ -7,8 +7,7 @@
     "tutorial": "tsx tutorial/agent.ts",
     "chatbot": "tsx chatbot/agent.ts",
     "dev": "tsx dev/agent.ts",
-    "sqltool": "tsx sqltool/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "sqltool": "tsx sqltool/supabase.ts"
   },
   "dependencies": {
     "@langchain/anthropic": "^0.3.17",

@@ -5,6 +5,8 @@ import { createClient } from "@supabase/supabase-js";
 import { saveModelGraphAsPng } from "../lib/utils.ts";
 import { GoogleLLM } from "../lib/llms.ts";
 
+import { QuerySqlTool } from "langchain/tools/sql";
+
 const llm = GoogleLLM;
 
 // Supabase 연결 설정
@@ -30,12 +32,13 @@ const toolkit = new SqlToolkit(db, llm);
 
 const tools = toolkit.getTools();
 
-// console.log(
-//   tools.map((tool) => ({
-//     name: tool.name,
-//     description: tool.description,
-//   }))
-// );
+console.log(
+  tools
+  // tools.map((tool) => ({
+  //   name: tool.name,
+  //   description: tool.description,
+  // }))
+);
 
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 
@@ -71,23 +74,23 @@ ALWAYS SQL query keyword should use \' instead of \".
  완구는 [어린이제품] 카테고리에 속하며 [안전확인] 인증을 받아야합니다.
 `;
 
-const exampleQuery = " 건전지는 어떤 인증을 받아야해?";
+// const exampleQuery = " 건전지는 어떤 인증을 받아야해?";
 
-const events = await agentExecutor.stream(
-  {
-    messages: [
-      ["system", systemPrompt],
-      ["user", exampleQuery],
-    ],
-  },
-  { streamMode: "values" }
-);
+// const events = await agentExecutor.stream(
+//   {
+//     messages: [
+//       ["system", systemPrompt],
+//       ["user", exampleQuery],
+//     ],
+//   },
+//   { streamMode: "values" }
+// );
 
-for await (const event of events) {
-  const lastMsg = event.messages[event.messages.length - 1];
-  if (lastMsg.tool_calls?.length) {
-    console.dir(lastMsg.tool_calls, { depth: null });
-  } else if (lastMsg.content) {
-    console.log(lastMsg.content);
-  }
-}
+// for await (const event of events) {
+//   const lastMsg = event.messages[event.messages.length - 1];
+//   if (lastMsg.tool_calls?.length) {
+//     console.dir(lastMsg.tool_calls, { depth: null });
+//   } else if (lastMsg.content) {
+//     console.log(lastMsg.content);
+//   }
+// }
