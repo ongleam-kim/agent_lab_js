@@ -1,5 +1,4 @@
 // Set up the tool
-import { ChatAnthropic } from "@langchain/anthropic";
 import { tool } from "@langchain/core/tools";
 import {
   StateGraph,
