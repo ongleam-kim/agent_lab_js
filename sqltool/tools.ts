@@ -1,6 +1,128 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
+// ... (기존 import 및 설정 코드) ...
+import OpenAI from "openai"; // OpenAI 라이브러리 추가
+
+// OpenAI 클라이언트 생성 함수 (API Key는 환경 변수에서 가져옴)
+const createOpenAIClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    // 실제 서비스에서는 오류 처리 또는 로깅 강화 필요
+    console.warn(
+      "OpenAI API Key가 설정되지 않았습니다. 시맨틱 검색이 제한될 수 있습니다."
+    );
+    return null;
+  }
+  return new OpenAI({ apiKey });
+};
+
+// 사용할 OpenAI 임베딩 모델 및 Supabase RPC 함수 정보
+const EMBEDDING_MODEL = "text-embedding-3-small"; // 데이터 생성 시 사용한 모델과 동일하게
+const VECTOR_DIMENSION = 1536; // 해당 모델의 벡터 차원
+const RPC_FUNCTION_NAME = "match_kc_certs"; // Supabase에 생성한 RPC 함수 이름
+
+// --- 시맨틱 검색 도구 추가 ---
+export const semanticSearchSupabaseTool = tool(
+  async ({ searchTerm, threshold = 0.3, count = 5 }) => {
+    console.log(
+      `[INFO] Semantic Search Term: '${searchTerm}', Threshold: ${threshold}, Count: ${count}`
+    );
+    const openai = createOpenAIClient();
+    const supabase = createSupabaseClient(); // Supabase 클라이언트 재사용 또는 재생성
+
+    if (!openai) {
+      return "시맨틱 검색 실패: OpenAI 클라이언트를 초기화할 수 없습니다. API Key 설정을 확인하세요.";
+    }
+
+    try {
+      // 1. 검색어 임베딩 생성
+      let queryEmbedding;
+      try {
+        console.log(`'${searchTerm}'에 대한 임베딩 생성 요청 중...`);
+        const embeddingResponse = await openai.embeddings.create({
+          input: [searchTerm.replace("\n", " ").trim()], // 간단한 전처리
+          model: EMBEDDING_MODEL,
+        });
+        queryEmbedding = embeddingResponse.data[0]?.embedding;
+
+        if (!queryEmbedding || queryEmbedding.length !== VECTOR_DIMENSION) {
+          console.error(
+            "임베딩 생성 실패 또는 차원 불일치:",
+            embeddingResponse
+          );
+          throw new Error(
+            `임베딩 생성 실패 또는 차원 불일치 (예상: ${VECTOR_DIMENSION})`
+          );
+        }
+        console.log("임베딩 생성 완료.");
+      } catch (error) {
+        console.error("OpenAI 임베딩 생성 중 오류:", error);
+        return `시맨틱 검색 실패: 검색어 임베딩 생성 중 오류 발생 - ${formattingErrorMessage(
+          error
+        )}`;
+      }
+
+      // 2. Supabase RPC 함수 호출
+      console.log(`Supabase RPC 함수 '${RPC_FUNCTION_NAME}' 호출 중...`);
+      const { data, error } = await supabase.rpc(RPC_FUNCTION_NAME, {
+        query_embedding: queryEmbedding,
+        match_threshold: threshold,
+        match_count: count,
+      });
+
+      if (error) {
+        console.error("Supabase RPC 오류:", error);
+        throw error; // 에러를 다시 던져서 상위 catch 블록에서 처리
+      }
+
+      if (data && data.length > 0) {
+        console.log(`시맨틱 검색 성공: ${data.length}개 결과 반환.`);
+        // 결과를 JSON 문자열로 반환 (테이블 형식은 LLM이 담당하도록 유도)
+        return JSON.stringify(data, null, 2);
+      } else {
+        console.log("시맨틱 검색 결과 없음.");
+        return "시맨틱 검색 결과가 없습니다. 다른 검색어를 시도해보세요.";
+      }
+    } catch (error) {
+      const errorMessage = formattingErrorMessage(error);
+      // 네트워크, 권한, 함수 정의 오류 등에 대한 힌트 제공
+      let hint = "";
+      if (typeof error === "object" && error !== null) {
+        const errorStr = JSON.stringify(error);
+        if (errorStr.includes("permission denied")) {
+          hint = "(힌트: 함수 실행 권한 확인 필요)";
+        } else if (
+          errorStr.includes("function " + RPC_FUNCTION_NAME + " does not exist")
+        ) {
+          hint = `(힌트: Supabase에 '${RPC_FUNCTION_NAME}' 함수 생성 및 파라미터 확인 필요)`;
+        } else if (errorStr.includes("vector dimensions do not match")) {
+          hint = "(힌트: 벡터 차원 불일치 확인 필요)";
+        }
+      }
+      return `시맨틱 검색 중 오류 발생: ${errorMessage} ${hint}`;
+    }
+  },
+  {
+    name: "semantic-search-supabase",
+    description:
+      "주어진 검색어와 의미적으로 유사한 제품의 KC 인증 정보를 데이터베이스에서 검색합니다. 정확한 제품명이 없을 때 유용합니다.",
+    schema: z.object({
+      searchTerm: z
+        .string()
+        .describe("의미적으로 유사한 항목을 찾기 위한 검색어"),
+      threshold: z
+        .number()
+        .optional()
+        .describe("유사도 임계값 (0~1 사이, 기본값 0.7)"),
+      count: z
+        .number()
+        .int()
+        .optional()
+        .describe("반환할 최대 결과 개수 (기본값 3)"),
+    }),
+  }
+);
 
 // Supabase 클라이언트 생성 함수
 const createSupabaseClient = () => {
@@ -128,34 +250,45 @@ export const infoTableSupabaseTool = tool(
   }
 );
 
-// SQL 쿼리 실행 도구
 export const querySupabaseTool = tool(
   async ({ product }) => {
-    console.log("[INFO] PRODUCT: ", product);
+    console.log("[INFO] PRODUCT (ILIKE Search): ", product);
+    const searchTerm = `%${product}%`; // 검색어 앞뒤에 와일드카드 추가
+
     try {
       const { data, error } = await supabase
-        .from("certification")
-        .select("*")
-        .eq("product", product);
+        .from("kc_certifications")
+        .select(
+          "sub_category, certification, certification_type, condition, exception, example" // example 컬럼도 포함하면 유용할 수 있음
+        )
+        // .eq("sub_category", product); // 기존 eq 대신 ilike 사용
+        .ilike("sub_category", searchTerm); // 대소문자 무시 부분 문자열 검색
 
       if (error) throw error;
 
-      return JSON.stringify(data, null, 2);
+      if (data && data.length > 0) {
+        console.log(`[INFO] ILIKE Search found ${data.length} results.`);
+        return JSON.stringify(data, null, 2);
+      } else {
+        console.log("[INFO] ILIKE Search found no results.");
+        return "해당 제품명을 포함하는 정보를 찾을 수 없습니다."; // 결과 없을 때 메시지
+      }
     } catch (error) {
       const errorMessage = formattingErrorMessage(error);
-      return `데이터 조회 중 오류 발생: ${errorMessage}`;
+      return `데이터 조회 중 오류 발생 (ILIKE): ${errorMessage}`;
     }
   },
   {
-    name: "query-supabase",
+    name: "query-supabase-ilike", // 도구 이름 변경 (구분 위해)
     description:
-      "지정한 product 이름을 기반으로 certification 테이블에서 정보를 조회합니다.",
+      "지정한 product 이름을 포함하는(대소문자 무시) 제품 정보를 kc_certifications 테이블에서 조회합니다.",
     schema: z.object({
-      product: z.string().describe("조회할 product 이름"),
+      product: z
+        .string()
+        .describe("포함 여부를 조회할 product 이름의 일부 또는 전체"),
     }),
   }
 );
-
 // 쿼리 검사 도구
 export const queryCheckerSupabaseTool = tool(
   async ({ query }) => {
@@ -336,6 +469,7 @@ export const ALL_TOOLS_LIST = [
   infoTableSupabaseTool,
   querySupabaseTool,
   queryCheckerSupabaseTool,
+  semanticSearchSupabaseTool,
   // insertDataSupabaseTool,
   // updateDataSupabaseTool,
   // deleteDataSupabaseTool,

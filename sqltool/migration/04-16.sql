@@ -36,7 +36,7 @@ GRANT EXECUTE ON FUNCTION get_table_column_info(TEXT, TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION get_table_column_info(TEXT, TEXT) TO authenticated;
 
 
--- ⚠️⚠️ 보안이슈에 노출될 수 있어서 특정 제품만 검색할 수 있도록 하는 코드로 작성하는게 훨씬 나음
+-- ⚠️⚠️ 보안이슈에 노출될 수 있어서 특정 제품만 검색할 수 있도록 하는 코드로 작성하는게 훨씬 나음 
 create or replace function execute_sql(query text)
 returns json
 language plpgsql

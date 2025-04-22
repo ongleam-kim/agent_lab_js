@@ -1,8 +1,6 @@
-import { SqlToolkit } from "langchain/agents/toolkits/sql";
-import { DataSource } from "typeorm";
-import { SqlDatabase } from "langchain/sql_db";
 import { createClient } from "@supabase/supabase-js";
 import { GoogleLLM } from "../lib/llms.ts";
+import { systemPrompt, testPrompt } from "./prompts.ts";
 
 const llm = GoogleLLM;
 
@@ -46,40 +44,12 @@ const agentExecutor = createReactAgent({ llm, tools });
 
 // // saveModelGraphAsPng(agentExecutor, "sqltool/graph.png");
 
-const systemPrompt = `
-You are a helpful assistant that can answer questions about the 'kc_certification' of 'product' based on 'certification' table.
-Answer Users question based on the following **DB SCHEMA** AND **RULES**.
-
-## RULES:
-ALWAYS reply in korean.
-ALWAYS search the 'product' and 'category' in 'certification' table using exact match first.
-If the search keyword is not found, retry search after removing spaces or adjusting spacing.
-ALWAYS SQL query keyword should use \' instead of \".
-
-## DB SCHEMA:
- 'id' INTEGER
- 'created_at' DATETIME
- 'product' TEXT
- 'category' TEXT
- 'radio_certification' TEXT
- 'industry' TEXT
- 'condition' TEXT
- 'examples' TEXT
- 'kc_certification' TEXT
-
-## Example Query:
- 완구는 어떤 KC인증을 받아야해?
-
-## Answer:
- 완구는 [어린이제품] 카테고리에 속하며 [안전확인] 인증을 받아야합니다.
-`;
-
-const exampleQuery = "빙삭기는 어떤 KC인증을 받아야해?";
+const exampleQuery = "전기호브는 어떤 인증들을 받아야해?";
 
 const events = await agentExecutor.stream(
   {
     messages: [
-      ["system", systemPrompt],
+      ["system", testPrompt],
       ["user", exampleQuery],
     ],
   },
